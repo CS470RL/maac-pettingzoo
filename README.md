@@ -15,11 +15,11 @@ Save average rewards for each agent per episode, and plot 'avg rewards per episo
 - main.py `--testnum`
 'testnum' option in main.py MAAC code saves the rewards to `test{testnum}.csv`  
 plot.py takes 'test{testnum}' or 'test{testnum}.csv' as an input using `--input` option.
-<br>
-- main.py `--n_rollout_threads 1`
+
+- main.py `--n_rollout_threads 1`  
 🚨 currently only supports single process
-<br>
-- plot.py `--which` agent to plot
-plot.py takes the agent number to plot with `--which` option.
+
+- plot.py `--which` agent to plot  
+plot.py takes the agent number to plot with `--which` option.  
 0 to plot every agents, or 1~NUMOFAGENTS to plot individual agent 
 (NUMOFAGENTS in MAAC paper is 8)
