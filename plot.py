@@ -36,7 +36,7 @@ def plot(plotWhich):
         raise Exception('Invalid agent number')
 
     plt.xlabel('episode')
-    plt.ylabel('sum of rewards per agent')
+    plt.ylabel('average rewards per agent')
     plt.legend()
     plt.savefig(f'{FILENAME}.png')
     plt.show()
