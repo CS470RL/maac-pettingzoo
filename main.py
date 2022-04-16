@@ -11,6 +11,10 @@ from utils.buffer import ReplayBuffer
 from utils.env_wrappers import SubprocVecEnv, DummyVecEnv
 from algorithms.attention_sac import AttentionSAC
 
+import csv
+import matplotlib.pyplot as plt
+
+NUMOFAGENTS = 8 # refer to the paper
 
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
@@ -26,6 +30,9 @@ def make_parallel_env(env_id, n_rollout_threads, seed):
         return SubprocVecEnv([get_env_fn(i) for i in range(n_rollout_threads)])
 
 def run(config):
+    f = open(f"test{config.testnum}.csv", 'w')
+    write = csv.writer(f, delimiter='\t')
+    
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
         run_num = 1
@@ -60,6 +67,7 @@ def run(config):
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
                                   for acsp in env.action_space])
     t = 0
+    avgRewardsPerEpisode = []
     for ep_i in range(0, config.n_episodes, config.n_rollout_threads):
         print("Episodes %i-%i of %i" % (ep_i + 1,
                                         ep_i + 1 + config.n_rollout_threads,
@@ -67,6 +75,7 @@ def run(config):
         obs = env.reset()
         model.prep_rollouts(device='cpu')
 
+        total_rewards = np.zeros(NUMOFAGENTS)
         for et_i in range(config.episode_length):
             # rearrange observations to be per agent, and convert to torch Variable
             torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])),
@@ -79,6 +88,15 @@ def run(config):
             # rearrange actions to be per environment
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
+
+            total_rewards = np.add(total_rewards, rewards)
+            # print("Check : ", total_rewards, rewards, total_rewards.shape, rewards.shape)
+
+            # # multi-processing (yet to be implemented)
+            # rewardsTmp = np.sum(rewards, axis=0)
+            # total_rewards = np.add(total_rewards, rewardsTmp)
+            # total_rewards = np.concatenate(total_rewards, np.expand_dims(rewards, axis=1))
+
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
             obs = next_obs
             t += config.n_rollout_threads
@@ -106,6 +124,29 @@ def run(config):
             os.makedirs(run_dir / 'incremental', exist_ok=True)
             model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
             model.save(run_dir / 'model.pt')
+
+        total_rewards /= config.episode_length # calculate avg
+        avgRewardsPerEpisode.append(total_rewards[0].tolist())
+
+        # record reward in every episode
+        # format : (1, 8) python list - [agent1 reward, agent2, ..., agent8]
+        write.writerow(total_rewards[0].tolist()) 
+
+    # Plotting - please use 'plot.py'
+    # changing format - all rewards of whole episodes for each agents; shape (8, episodes)
+    # rewardsPerAgent = list(zip(*avgRewardsPerEpisode)) 
+    # for n in range(1, NUMOFAGENTS + 1):
+    #     plt.plot(np.arange(0, config.n_episodes), rewardsPerAgent[n-1], label=f"agent{n}")
+    # plt.savefig(f"test{config.testnum}.png",)
+    # plt.legend()
+    # plt.show()
+
+
+    # with open(f"test{config.testnum}.csv", 'w') as f:
+        # write = csv.writer(f, delimiter='\t')
+        # write.writerows(rewardsPerAgent)
+
+    f.close()
 
     model.save(run_dir / 'model.pt')
     env.close()
@@ -139,6 +180,8 @@ if __name__ == '__main__':
     parser.add_argument("--gamma", default=0.99, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)
     parser.add_argument("--use_gpu", action='store_true')
+
+    parser.add_argument("--testnum", default=1, type=int)
 
     config = parser.parse_args()
 
