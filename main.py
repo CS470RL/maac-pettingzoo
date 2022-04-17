@@ -67,7 +67,6 @@ def run(config):
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
                                   for acsp in env.action_space])
     t = 0
-    avgRewardsPerEpisode = []
     for ep_i in range(0, config.n_episodes, config.n_rollout_threads):
         print("Episodes %i-%i of %i" % (ep_i + 1,
                                         ep_i + 1 + config.n_rollout_threads,
@@ -89,14 +88,6 @@ def run(config):
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
 
-            total_rewards = np.add(total_rewards, rewards)
-            # print("Check : ", total_rewards, rewards, total_rewards.shape, rewards.shape)
-
-            # # multi-processing (yet to be implemented)
-            # rewardsTmp = np.sum(rewards, axis=0)
-            # total_rewards = np.add(total_rewards, rewardsTmp)
-            # total_rewards = np.concatenate(total_rewards, np.expand_dims(rewards, axis=1))
-
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
             obs = next_obs
             t += config.n_rollout_threads
@@ -115,6 +106,7 @@ def run(config):
                 model.prep_rollouts(device='cpu')
         ep_rews = replay_buffer.get_average_rewards(
             config.episode_length * config.n_rollout_threads)
+ 
         for a_i, a_ep_rew in enumerate(ep_rews):
             logger.add_scalar('agent%i/mean_episode_rewards' % a_i,
                               a_ep_rew * config.episode_length, ep_i)
@@ -125,26 +117,12 @@ def run(config):
             model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
             model.save(run_dir / 'model.pt')
 
-        total_rewards /= config.episode_length # calculate avg
-        avgRewardsPerEpisode.append(total_rewards[0].tolist())
+        avg_rew = np.array(ep_rews) * config.episode_length
+        print(avg_rew)
 
         # record reward in every episode
         # format : (1, 8) python list - [agent1 reward, agent2, ..., agent8]
-        write.writerow(total_rewards[0].tolist()) 
-
-    # Plotting - please use 'plot.py'
-    # changing format - all rewards of whole episodes for each agents; shape (8, episodes)
-    # rewardsPerAgent = list(zip(*avgRewardsPerEpisode)) 
-    # for n in range(1, NUMOFAGENTS + 1):
-    #     plt.plot(np.arange(0, config.n_episodes), rewardsPerAgent[n-1], label=f"agent{n}")
-    # plt.savefig(f"test{config.testnum}.png",)
-    # plt.legend()
-    # plt.show()
-
-
-    # with open(f"test{config.testnum}.csv", 'w') as f:
-        # write = csv.writer(f, delimiter='\t')
-        # write.writerows(rewardsPerAgent)
+        write.writerow(avg_rew) 
 
     f.close()
 

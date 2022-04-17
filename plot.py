@@ -11,7 +11,7 @@ def plot(plotWhich):
 
     rewardPerAgent = [[] for _ in range(NUMOFAGENTS)]
 
-    f = open(f'{FILENAME}.csv')
+    f = open(f'data/{FILENAME}.csv')
     reader = csv.reader(f, delimiter='\t')
     for episode, line in enumerate(reader):
         epi_reward = list(map(float, line))
@@ -20,7 +20,9 @@ def plot(plotWhich):
     else:
         TOTAL_EPISODES = episode + 1
 
+    # print(TOTAL_EPISODES) 
     res = np.array(rewardPerAgent)
+    # print(res.shape)
     # res = np.array([np.array(row) for row in rewardPerAgent])
     # print(res.shape, res[1], res[1].shape)
 
@@ -35,7 +37,7 @@ def plot(plotWhich):
     else:
         raise Exception('Invalid agent number')
 
-    plt.xlabel('episode')
+    plt.xlabel('episode (n_rollout_threads == 12)')
     plt.ylabel('average rewards per agent')
     plt.legend()
     plt.savefig(f'{FILENAME}.png')
