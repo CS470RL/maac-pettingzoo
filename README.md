@@ -23,3 +23,14 @@ plot.py takes 'test{testnum}' or 'test{testnum}.csv' as an input using `--input`
 plot.py takes the agent number to plot with `--which` option.  
 0 to plot every agents, or 1~NUMOFAGENTS to plot individual agent 
 (NUMOFAGENTS in MAAC paper is 8)
+
+## Experiment Results
+* env: fullobs_collect_treasure
+* n_episodes: 10,000
+* n_rollout_threads: 10
+
+#### Training statistics for a single agnet (agent0)
+![agent0](./imgs/agent0.png)
+
+#### Total sum of rewards in each episode
+![reward_sum](./imgs/reward_sum.png)
