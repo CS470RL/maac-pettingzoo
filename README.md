@@ -1,2 +1,2 @@
 # maac-pettingzoo
-Applying the MAAC algorithm onto Pettinzoo Environments 
+Applying the MAAC algorithm onto Pettingzoo Environments 
