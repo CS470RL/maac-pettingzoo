@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Multi-Actor-Attention-Critic
 Save average rewards for each agent per episode, and plot 'avg rewards per episode'
 <br>
@@ -34,3 +35,7 @@ plot.py takes the agent number to plot with `--which` option.
 
 #### Total sum of rewards in each episode
 ![reward_sum](./imgs/reward_sum.png)
+=======
+# maac-pettingzoo
+Applying the MAAC algorithm onto Pettingzoo Environments 
+>>>>>>> 06f27286cc120afd90dcf43d223ab0a9b844643f
