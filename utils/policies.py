@@ -35,9 +35,11 @@ class BasePolicy(nn.Module):
         Outputs:
             out (PyTorch Matrix): Actions
         """
+
         onehot = None
         if type(X) is tuple:
             X, onehot = X
+        
         inp = self.in_fn(X)  # don't batchnorm onehot
         if onehot is not None:
             inp = torch.cat((onehot, inp), dim=1)

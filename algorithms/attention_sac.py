@@ -5,6 +5,8 @@ from utils.misc import soft_update, hard_update, enable_gradients, disable_gradi
 from utils.agents import AttentionAgent
 from utils.critics import AttentionCritic
 
+from gym.spaces.utils import flatten, flatdim
+
 MSELoss = torch.nn.MSELoss()
 
 class AttentionSAC(object):
@@ -75,50 +77,87 @@ class AttentionSAC(object):
         Outputs:
             actions: List of actions for each agent
         """
-        return [a.step(obs, explore=explore) for a, obs in zip(self.agents,
-                                                               observations)]
+        return [a.step(obs, explore=explore) for a, obs in zip(self.agents, observations)]
 
     def update_critic(self, sample, soft=True, logger=None, **kwargs):
         """
         Update central critic for all agents
         """
+
+        print("START update_critic")
+
         obs, acs, rews, next_obs, dones = sample
+
+        print('part 1')
+
         # Q loss
         next_acs = []
         next_log_pis = []
+
         for pi, ob in zip(self.target_policies, next_obs):
             curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)
             next_acs.append(curr_next_ac)
             next_log_pis.append(curr_next_log_pi)
+
+        print('part 2')
+
         trgt_critic_in = list(zip(next_obs, next_acs))
         critic_in = list(zip(obs, acs))
+
+        print('part2-1')
+
         next_qs = self.target_critic(trgt_critic_in)
-        critic_rets = self.critic(critic_in, regularize=True,
-                                  logger=logger, niter=self.niter)
+
+        print('part2-2')
+
+        print('critic_in:')
+        print(critic_in)
+        
+        critic_rets = self.critic(critic_in, regularize=True, logger=logger, niter=self.niter)
+
+        print('part 3')
+
         q_loss = 0
-        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs,
-                                               next_log_pis, critic_rets):
+        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
             target_q = (rews[a_i].view(-1, 1) +
-                        self.gamma * nq *
-                        (1 - dones[a_i].view(-1, 1)))
+                        self.gamma * nq * (1 - dones[a_i].view(-1, 1))
+                        )
+
             if soft:
                 target_q -= log_pi / self.reward_scale
             q_loss += MSELoss(pq, target_q.detach())
             for reg in regs:
                 q_loss += reg  # regularizing attention
+
+        print('part 4')
+
         q_loss.backward()
         self.critic.scale_shared_grads()
+
+        print('part 5')
+
         grad_norm = torch.nn.utils.clip_grad_norm(
-            self.critic.parameters(), 10 * self.nagents)
+            self.critic.parameters(), 10 * self.nagents
+            )
         self.critic_optimizer.step()
+
+        print('part 6')
+
         self.critic_optimizer.zero_grad()
+
+        print('part 7')
 
         if logger is not None:
             logger.add_scalar('losses/q_loss', q_loss, self.niter)
             logger.add_scalar('grad_norms/q', grad_norm, self.niter)
         self.niter += 1
 
+        print("END update_critic")
+
     def update_policies(self, sample, soft=True, logger=None, **kwargs):
+        print("START update_policies")
+
+
         obs, acs, rews, next_obs, dones = sample
         samp_acs = []
         all_probs = []
@@ -165,6 +204,8 @@ class AttentionSAC(object):
                                   pol_loss, self.niter)
                 logger.add_scalar('agent%i/grad_norms/pi' % a_i,
                                   grad_norm, self.niter)
+
+        print("END update_policies")
 
 
     def update_all_targets(self):
@@ -243,11 +284,10 @@ class AttentionSAC(object):
         """
         agent_init_params = []
         sa_size = []
-        for acsp, obsp in zip(env.action_space,
-                              env.observation_space):
-            agent_init_params.append({'num_in_pol': obsp.shape[0],
-                                      'num_out_pol': acsp.n})
-            sa_size.append((obsp.shape[0], acsp.n))
+
+        for acsp, obsp in zip(env.action_spaces.values(), env.observation_spaces.values()):
+            agent_init_params.append({'num_in_pol': flatdim(obsp), 'num_out_pol': acsp.n})
+            sa_size.append((flatdim(obsp), acsp.n))
 
         init_dict = {'gamma': gamma, 'tau': tau,
                      'pi_lr': pi_lr, 'q_lr': q_lr,
@@ -259,6 +299,7 @@ class AttentionSAC(object):
                      'sa_size': sa_size}
         instance = cls(**init_dict)
         instance.init_dict = init_dict
+
         return instance
 
     @classmethod

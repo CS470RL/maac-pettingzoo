@@ -67,6 +67,7 @@ class Scenario(BaseScenario):
 
     def post_step(self, world):
         self.reset_cached_rewards()
+
         for l in world.landmarks:
             if l.alive:
                 for a in self.collectors(world):
@@ -84,6 +85,7 @@ class Scenario(BaseScenario):
                     l.type = np.random.choice(world.treasure_types)
                     l.color = world.treasure_colors[l.type]
                     l.alive = True
+
         for a in self.collectors(world):
             if a.holding is not None:
                 for d in self.deposits(world):
@@ -141,7 +143,6 @@ class Scenario(BaseScenario):
                        else self.deposit_reward(agent, world))
         return main_reward
 
-    def deposit_reward(self, agent, world):
         rew = 0
         shape = True
         if shape:  # reward can optionally be shaped
@@ -227,6 +228,7 @@ class Scenario(BaseScenario):
 
         n_treasure_types = len(world.treasure_types)
         obs = [agent.state.p_pos, agent.state.p_vel]
+        
         if agent.collector:
             # collectors need to know their own state bc it changes
             obs.append((np.arange(n_treasure_types) == agent.holding))

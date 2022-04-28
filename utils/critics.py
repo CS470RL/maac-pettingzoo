@@ -88,6 +88,9 @@ class AttentionCritic(nn.Module):
 
     def forward(self, inps, agents=None, return_q=True, return_all_q=False,
                 regularize=False, return_attend=False, logger=None, niter=0):
+        
+        print("Attention Critic forward!")
+        
         """
         Inputs:
             inps (list of PyTorch Matrices): Inputs to each agents' encoder
@@ -101,10 +104,19 @@ class AttentionCritic(nn.Module):
             logger (TensorboardX SummaryWriter): If passed in, important values
                                                  are logged
         """
+
+        print('agents:')
+        print(agents)
+
         if agents is None:
             agents = range(len(self.critic_encoders))
+
+        print('agents:')
+        print(agents)
+
         states = [s for s, a in inps]
         actions = [a for s, a in inps]
+
         inps = [torch.cat((s, a), dim=1) for s, a in inps]
         # extract state-action encoding for each agent
         sa_encodings = [encoder(inp) for encoder, inp in zip(self.critic_encoders, inps)]
@@ -118,27 +130,52 @@ class AttentionCritic(nn.Module):
         all_head_selectors = [[sel_ext(enc) for i, enc in enumerate(s_encodings) if i in agents]
                               for sel_ext in self.selector_extractors]
 
+        print('point 1')
+
         other_all_values = [[] for _ in range(len(agents))]
         all_attend_logits = [[] for _ in range(len(agents))]
         all_attend_probs = [[] for _ in range(len(agents))]
+        
+        
         # calculate attention per head
-        for curr_head_keys, curr_head_values, curr_head_selectors in zip(
-                all_head_keys, all_head_values, all_head_selectors):
+        for curr_head_keys, curr_head_values, curr_head_selectors in zip(all_head_keys, all_head_values, all_head_selectors):
             # iterate over agents
             for i, a_i, selector in zip(range(len(agents)), agents, curr_head_selectors):
                 keys = [k for j, k in enumerate(curr_head_keys) if j != a_i]
                 values = [v for j, v in enumerate(curr_head_values) if j != a_i]
+                
+                print('pp 1')
+                
                 # calculate attention across agents
                 attend_logits = torch.matmul(selector.view(selector.shape[0], 1, -1),
                                              torch.stack(keys).permute(1, 2, 0))
+
+                print('pp 2')
+                
                 # scale dot-products by size of key (from Attention is All You Need)
                 scaled_attend_logits = attend_logits / np.sqrt(keys[0].shape[1])
                 attend_weights = F.softmax(scaled_attend_logits, dim=2)
-                other_values = (torch.stack(values).permute(1, 2, 0) *
-                                attend_weights).sum(dim=2)
+
+                print('pp 3')
+                print(f'values: {values}')
+                other_values = (torch.stack(values).permute(1, 2, 0) * attend_weights).sum(dim=2)
+
+                print('pp 4')
+
                 other_all_values[i].append(other_values)
+
+                print('pp 5')
+
                 all_attend_logits[i].append(attend_logits)
+
+                print('pp 6')
+
                 all_attend_probs[i].append(attend_weights)
+
+                print('pp 7')
+        
+        print('point 2')
+
         # calculate Q per agent
         all_rets = []
         for i, a_i in enumerate(agents):
