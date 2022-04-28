@@ -33,13 +33,11 @@ def make_env(scenario_name, benchmark=False, discrete_action=False):
     import multiagent.scenarios as old_scenarios
     import envs.mpe_scenarios as new_scenarios
 
-    # load scenario from script
-    try:
-        scenario = old_scenarios.load(scenario_name + ".py").Scenario()
-    except:
-        scenario = new_scenarios.load(scenario_name + ".py").Scenario()
+    scenario = new_scenarios.load(scenario_name + ".py").Scenario()
+
     # create world
     world = scenario.make_world()
+    
     # create multiagent environment
     if hasattr(scenario, 'post_step'):
         post_step = scenario.post_step

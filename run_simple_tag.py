@@ -14,8 +14,6 @@ from algorithms.attention_sac import AttentionSAC
 import csv
 import matplotlib.pyplot as plt
 
-NUMOFAGENTS = 8 # refer to the paper
-
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
         def init_env():
@@ -65,8 +63,6 @@ def run(config):
                                        attend_heads=config.attend_heads,
                                        reward_scale=config.reward_scale)
 
-    print(f'num_agents: {model.nagents}')
-
     replay_buffer = ReplayBuffer(config.buffer_length, model.nagents,
                                  [obsp.shape[0] for obsp in env.observation_space],
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
@@ -77,13 +73,12 @@ def run(config):
                                         ep_i + 1 + config.n_rollout_threads,
                                         config.n_episodes))
         obs = env.reset()
-        
+
         if config.use_gpu:
             model.prep_training(device='gpu')
         else:
             model.prep_training(device='cpu')
 
-        total_rewards = np.zeros(NUMOFAGENTS)
         for et_i in range(config.episode_length):
             # rearrange observations to be per agent, and convert to torch Variable
             torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])),
@@ -101,7 +96,6 @@ def run(config):
 
             obs = next_obs
             t += config.n_rollout_threads
-
             if (len(replay_buffer) >= config.batch_size and
                 (t % config.steps_per_update) < config.n_rollout_threads):
 
@@ -109,14 +103,14 @@ def run(config):
                     model.prep_training(device='gpu')
                 else:
                     model.prep_training(device='cpu')
-
+                
                 for u_i in range(config.num_updates):
                     sample = replay_buffer.sample(config.batch_size,
                                                   to_gpu=config.use_gpu)
                     model.update_critic(sample, logger=logger)
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
-                    
+
                 if config.use_gpu:
                     model.prep_training(device='gpu')
                 else:
@@ -124,13 +118,27 @@ def run(config):
                 
         ep_rews = replay_buffer.get_average_rewards(
             config.episode_length * config.n_rollout_threads)
+
+        # sum up the rewards for each type of agent!
+        predator_reward_sum = 0
+        prey_reward_sum = 0
+        num_adversaries = 10
  
         for a_i, a_ep_rew in enumerate(ep_rews):
+            if a_i < num_adversaries:
+                predator_reward_sum += a_ep_rew * config.episode_length
+            else:
+                prey_reward_sum += a_ep_rew * config.episode_length
+            
             logger.add_scalar('agent%i/mean_episode_rewards' % a_i,
                               a_ep_rew * config.episode_length, ep_i)
 
-        if ep_i % config.save_interval < config.n_rollout_threads:
+        logger.add_scalar('predator_reward_sum', predator_reward_sum, ep_i)
+        logger.add_scalar('prey_reward_sum', prey_reward_sum, ep_i)
+        logger.add_scalar('total_reward_sum', prey_reward_sum + predator_reward_sum, ep_i)
 
+        if ep_i % config.save_interval < config.n_rollout_threads:
+            
             if config.use_gpu:
                 model.prep_training(device='gpu')
             else:
@@ -141,7 +149,7 @@ def run(config):
             model.save(run_dir / 'model.pt')
 
         avg_rew = np.array(ep_rews) * config.episode_length
-        print(avg_rew)
+        # print(avg_rew)
 
         # record reward in every episode
         # format : (1, 8) python list - [agent1 reward, agent2, ..., agent8]
@@ -157,6 +165,7 @@ def run(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+
     parser.add_argument("env_id", help="Name of environment")
     parser.add_argument("model_name",
                         help="Name of directory to store " +
@@ -181,6 +190,9 @@ if __name__ == '__main__':
     parser.add_argument("--gamma", default=0.99, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)
     parser.add_argument("--use_gpu", action='store_true')
+
+    # arguments for simple_tag environment
+
 
     parser.add_argument("--testnum", default=1, type=int)
 
