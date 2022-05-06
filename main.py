@@ -107,10 +107,7 @@ def run(config):
 
                 for u_i in range(config.num_updates):
                     sample = replay_buffer.sample(config.batch_size, to_gpu=config.use_gpu)
-
                     model.update_critic(sample, logger=logger)
-                    
-
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
                 model.prep_rollouts(device='cpu')

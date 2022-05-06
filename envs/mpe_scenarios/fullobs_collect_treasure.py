@@ -6,6 +6,7 @@ from multiagent.scenario import BaseScenario
 class Scenario(BaseScenario):
     def make_world(self):
         world = World()
+
         # set any world properties first
         world.cache_dists = True
         world.dim_c = 2
@@ -16,6 +17,7 @@ class Scenario(BaseScenario):
         world.treasure_colors = np.array(
             sns.color_palette(n_colors=num_deposits))
         num_treasures = num_collectors
+        
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
         for i, agent in enumerate(world.agents):
@@ -35,6 +37,7 @@ class Scenario(BaseScenario):
             agent.accel = 1.5
             agent.initial_mass = 1.0 if agent.collector else 2.25
             agent.max_speed = 1.0
+
         # add treasures
         world.landmarks = [Landmark() for i in range(num_treasures)]
         for i, landmark in enumerate(world.landmarks):
@@ -49,9 +52,11 @@ class Scenario(BaseScenario):
             landmark.size = 0.025
             landmark.boundary = False
         world.walls = []
+
         # make initial conditions
         self.reset_world(world)
         self.reset_cached_rewards()
+        
         return world
 
     def collectors(self, world):
